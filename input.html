@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Medir un toque</title>
+<style>
+  :root { --fondo: #f6f5f1; --papel: #fff; --tinta: #1c1b18; --tenue: #6b6860; --linea: #dedbd2; --acento: #1f7a4d; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --fondo: #16171a; --papel: #1f2125; --tinta: #ecebe6; --tenue: #9b9a92; --linea: #33363c; --acento: #4fc283; }
+  }
+  :root[data-theme="dark"] { --fondo: #16171a; --papel: #1f2125; --tinta: #ecebe6; --tenue: #9b9a92; --linea: #33363c; --acento: #4fc283; }
+  body { margin: 0; padding: 16px; background: var(--fondo); color: var(--tinta);
+    font: 16px/1.45 system-ui, Roboto, "Segoe UI", sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  p { margin: 0 0 12px; color: var(--tenue); }
+  #zona { display: grid; place-items: center; height: 34vh; border: 2px dashed var(--acento);
+    border-radius: 14px; background: var(--papel); font-size: 18px; font-weight: 600;
+    touch-action: none; user-select: none; -webkit-user-select: none; }
+  #zona.listo { border-style: solid; }
+  pre { margin: 12px 0 0; padding: 10px; background: #fff; color: #000; border-radius: 10px;
+    font: 600 13px/1.3 ui-monospace, "Roboto Mono", Consolas, monospace; white-space: pre-wrap;
+    word-break: break-all; }
+  .firma { display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; }
+</style>
+<body>
+  <h1>Medir un toque</h1>
+  <p>Tocá el recuadro <strong>una vez, con el dedo</strong>. Después sacá una captura de esta pantalla y mandala.</p>
+  <div id="zona">tocá acá</div>
+  <div class="firma"><span id="estado">esperando el toque…</span><span id="firma"></span></div>
+  <pre id="salida">—</pre>
+<script>
+(() => {
+  const o = {};
+  const secuencia = [];
+  const zona = document.getElementById("zona");
+  const anotar = (k, v) => { if (!(k in o)) o[k] = v; };
+
+  for (const n of ["mouseover", "mousedown", "mouseup", "click",
+                   "pointerover", "pointerdown", "pointerup", "touchstart", "touchend"]) {
+    zona.addEventListener(n, () => { if (secuencia.length < 14) secuencia.push(n); }, true);
+  }
+  zona.addEventListener("pointerdown", (e) => {
+    anotar("tipo", e.pointerType);
+    anotar("area", e.width + "x" + e.height);
+    anotar("presion", Math.round(e.pressure * 1000) / 1000);
+    anotar("inclinacion", e.tiltX + "/" + e.tiltY);
+    anotar("primario", e.isPrimary);
+    anotar("botones", e.buttons);
+  }, true);
+  zona.addEventListener("touchstart", (e) => {
+    anotar("toques", e.touches.length);
+    const t = e.touches[0];
+    if (t) {
+      anotar("radio", (Math.round(t.radiusX * 100) / 100) + "x" + (Math.round(t.radiusY * 100) / 100));
+      anotar("fuerza", Math.round(t.force * 1000) / 1000);
+      anotar("angulo", t.rotationAngle);
+    }
+  }, true);
+
+  const volcar = () => {
+    o.mouseover_antes = secuencia.indexOf("mouseover") >= 0 &&
+      (secuencia.indexOf("pointerdown") < 0 || secuencia.indexOf("mouseover") < secuencia.indexOf("pointerdown"));
+    o.max_touch_points = navigator.maxTouchPoints;
+    o.puntero = (matchMedia("(pointer: coarse)").matches ? "coarse" : "fine") +
+      "/" + (matchMedia("(hover: hover)").matches ? "hover" : "none");
+    o.eventos = secuencia.join(",");
+    const texto = Object.entries(o).map(([k, v]) => k + "=" + v).join("\n");
+    let h = 5381;
+    for (const ch of texto) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+    document.getElementById("salida").textContent = texto;
+    document.getElementById("firma").textContent = "firma " + h.toString(16).padStart(8, "0");
+    document.getElementById("estado").textContent = "listo — sacá la captura";
+    zona.textContent = "medido ✓";
+    zona.classList.add("listo");
+  };
+  for (const n of ["pointerup", "touchend", "click"]) zona.addEventListener(n, () => setTimeout(volcar, 120), true);
+})();
+</script>
+</html>
