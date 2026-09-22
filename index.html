@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Medir mi celular</title>
+<style>
+  :root {
+    --fondo: #f6f5f1; --papel: #ffffff; --tinta: #1c1b18; --tenue: #6b6860;
+    --linea: #dedbd2; --acento: #1f7a4d; --acento-tinta: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #16171a; --papel: #1f2125; --tinta: #ecebe6; --tenue: #9b9a92;
+      --linea: #33363c; --acento: #4fc283; --acento-tinta: #10281b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fondo: #16171a; --papel: #1f2125; --tinta: #ecebe6; --tenue: #9b9a92;
+    --linea: #33363c; --acento: #4fc283; --acento-tinta: #10281b;
+  }
+  body { background: var(--fondo); color: var(--tinta); margin: 0; padding-block: 24px;
+    padding-inline: 16px; font: 16px/1.5 system-ui, Roboto, "Segoe UI", sans-serif; }
+  main { max-width: 560px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-size: 22px; margin: 0; }
+  p { margin: 0; color: var(--tenue); }
+  .estado { background: var(--papel); border: 1px solid var(--linea); border-radius: 10px; padding: 16px; }
+  .estado strong { font-size: 18px; }
+  button { font: inherit; font-weight: 600; background: var(--acento); color: var(--acento-tinta);
+    border: 0; border-radius: 10px; padding: 14px 18px; width: 100%; cursor: pointer; }
+  button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+  button[disabled] { opacity: .5; cursor: default; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 160px; font: 12px/1.4 ui-monospace, Consolas, monospace;
+    background: var(--papel); color: var(--tinta); border: 1px solid var(--linea); border-radius: 10px; padding: 10px; }
+  ol { margin: 0; padding-left: 20px; color: var(--tenue); }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+  dt { color: var(--tenue); } dd { margin: 0; font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
+  /* Modo captura: solo texto, lo mas grande que entre en una pantalla. */
+  #captura { position: fixed; inset: 0; background: #fff; color: #000; padding: 6px 8px; box-sizing: border-box;
+    display: grid; grid-template-rows: auto 1fr auto; gap: 4px; z-index: 9; }
+  #captura pre { margin: 0; font: 600 11.5px/1.22 ui-monospace, "Roboto Mono", Consolas, monospace; white-space: pre-wrap;
+    word-break: break-all; overflow: hidden; }
+  #captura .cab { font: 700 14px/1.2 system-ui, sans-serif; display: flex; justify-content: space-between; }
+  #captura .pie { display: flex; gap: 6px; }
+  #captura .pie button { padding: 8px; font-size: 14px; }
+  .secundario { background: var(--papel); color: var(--tinta); border: 1px solid var(--linea); }
+</style>
+<main>
+  <h1>Medir mi celular</h1>
+  <p>Abrí esta página <strong>en Chrome, en el celular</strong> (no en modo incógnito ni en escritorio). Tarda unos segundos. Después tocá «Copiar» y mandale el texto a quien te pasó el link. No manda nada a ningún lado: el resultado solo lo ves vos.</p>
+  <div class="estado" id="estado"><strong>Midiendo…</strong></div>
+  <dl id="resumen" hidden></dl>
+  <button id="copiar" disabled>Copiar el resultado</button>
+  <button id="modo-captura" class="secundario" disabled>Ver como texto para sacar capturas</button>
+  <div class="estado">
+    <p>Si copiar no anda (un celular remoto, por ejemplo): en tu PC abrí <strong>webhook.site</strong>, copiá la URL única que te da, pegala acá y tocá «Enviar». El resultado aparece en esa página de tu PC.</p>
+    <form id="envio" method="get" style="display:grid;gap:8px;margin-top:10px">
+      <input id="destino" type="url" inputmode="url" placeholder="https://webhook.site/…" aria-label="URL de destino"
+        style="font:inherit;padding:10px;border:1px solid var(--linea);border-radius:8px;background:var(--papel);color:var(--tinta)">
+      <button id="enviar" type="submit" disabled>Enviar el resultado a esa URL</button>
+    </form>
+  </div>
+  <textarea id="salida" readonly aria-label="Resultado" placeholder="El resultado aparece acá"></textarea>
+  <ol>
+    <li>Si «Copiar» no anda, mantené apretado el cuadro de texto, «Seleccionar todo» y «Copiar».</li>
+    <li>Si el celular pregunta por la cámara o el micrófono, podés decir que no: solo cuenta cuántos hay.</li>
+  </ol>
+</main>
+<script>
+(async () => {
+  const o = { medido: new Date().toISOString(), version_sonda: "gab-128" };
+  const seguro = (k, f) => { try { o[k] = f(); } catch (e) { o[k] = "ERR:" + e.name; } };
+
+  seguro("ua", () => navigator.userAgent);
+  seguro("platform", () => navigator.platform);
+  seguro("webdriver", () => navigator.webdriver);
+  seguro("hardwareConcurrency", () => navigator.hardwareConcurrency);
+  seguro("deviceMemory", () => navigator.deviceMemory);
+  seguro("touch_puntos", () => navigator.maxTouchPoints);
+  seguro("touch_evento", () => "ontouchstart" in window);
+  seguro("puntero", () => (matchMedia("(pointer: coarse)").matches ? "coarse" : "fine") + "/" + (matchMedia("(hover: none)").matches ? "none" : "hover"));
+  seguro("screen", () => screen.width + "x" + screen.height + "@" + devicePixelRatio);
+  seguro("screen_avail", () => screen.availWidth + "x" + screen.availHeight);
+  seguro("orientacion", () => screen.orientation && screen.orientation.type);
+  seguro("inner", () => innerWidth + "x" + innerHeight);
+  seguro("colorDepth", () => screen.colorDepth);
+  seguro("idiomas", () => navigator.languages.join(","));
+  seguro("zona", () => Intl.DateTimeFormat().resolvedOptions().timeZone);
+  seguro("api_contentIndex", () => "ContentIndex" in window);
+  seguro("api_contactsManager", () => "ContactsManager" in window || "contacts" in navigator);
+  seguro("api_downlinkMax", () => !!(navigator.connection && "downlinkMax" in navigator.connection));
+
+  // Client hints, con los de alta entropia (version de Android, modelo).
+  try {
+    const d = navigator.userAgentData;
+    if (!d) o.uaData = "no existe";
+    else {
+      o.uaData_brands = d.brands.map(b => b.brand + "/" + b.version).join("|");
+      o.uaData_mobile = d.mobile;
+      o.uaData_platform = d.platform;
+      const h = await d.getHighEntropyValues(["platformVersion", "model", "architecture", "bitness", "fullVersionList", "uaFullVersion"]);
+      o.uaData_platformVersion = h.platformVersion;
+      o.uaData_model = h.model;
+      o.uaData_architecture = h.architecture;
+      o.uaData_bitness = h.bitness;
+      o.uaData_fullVersionList = (h.fullVersionList || []).map(b => b.brand + "/" + b.version).join("|");
+    }
+  } catch (e) { o.uaData = "ERR:" + e.name; }
+
+  // WebGL: la GPU y lo que hay detras de la cadena.
+  try {
+    const c = document.createElement("canvas");
+    const gl = c.getContext("webgl2") || c.getContext("webgl");
+    if (!gl) o.gl = "sin contexto";
+    else {
+      const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+      o.webgl_vendor = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : "?";
+      o.webgl_renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "?";
+      o.gl_version = gl.getParameter(gl.VERSION);
+      o.gl_shading = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+      const ext = gl.getSupportedExtensions() || [];
+      o.gl_extensiones_n = ext.length;
+      o.gl_extensiones = ext.slice().sort().join(",");
+      o.gl_max_texture = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+      o.gl_max_viewport = (gl.getParameter(gl.MAX_VIEWPORT_DIMS) || []).join("x");
+      o.gl_max_renderbuffer = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
+      o.gl_max_varying = gl.getParameter(gl.MAX_VARYING_VECTORS);
+      o.gl_max_vertex_uniform = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS);
+      o.gl_max_fragment_uniform = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS);
+      o.gl_max_texture_units = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+      o.gl_max_cube = gl.getParameter(gl.MAX_CUBE_MAP_TEXTURE_SIZE);
+      o.gl_aliased_line = (gl.getParameter(gl.ALIASED_LINE_WIDTH_RANGE) || []).join("-");
+      o.gl_aliased_point = (gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) || []).join("-");
+      const p = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+      o.gl_precision_frag_high = p ? p.rangeMin + "/" + p.rangeMax + "/" + p.precision : "?";
+      const aa = gl.getContextAttributes();
+      o.gl_antialias = aa && aa.antialias;
+      o.gl_max_samples = gl.MAX_SAMPLES ? gl.getParameter(gl.MAX_SAMPLES) : "n/a";
+    }
+  } catch (e) { o.gl = "ERR:" + e.name; }
+
+  // WebGPU: la misma GPU por la otra via.
+  try {
+    if (!navigator.gpu) o.webgpu = "no existe";
+    else {
+      const a = await Promise.race([navigator.gpu.requestAdapter(), new Promise(r => setTimeout(() => r(null), 6000))]);
+      o.webgpu = a ? "adapter" : "sin adapter";
+      if (a && a.info) o.webgpu_info = (a.info.vendor || "?") + "/" + (a.info.architecture || "?") + "/" + (a.info.device || "") + "/" + (a.info.description || "");
+    }
+  } catch (e) { o.webgpu = "ERR:" + e.name; }
+
+  // Fuentes, por ancho: la unica via que informa (GAB-95).
+  const SONDA_F = ["Arial","Calibri","Cambria","Consolas","Courier New","Georgia","Impact",
+    "Segoe UI","Tahoma","Times New Roman","Trebuchet MS","Verdana","Comic Sans MS",
+    "MS Gothic","Meiryo","SimSun","Malgun Gothic","Helvetica Neue","Menlo","Ubuntu",
+    "DejaVu Sans","Liberation Sans","Roboto","Noto Sans",
+    "Roboto Condensed","Roboto Mono","Noto Serif","Noto Sans Mono","Noto Color Emoji",
+    "Droid Sans Mono","Google Sans","Product Sans",
+    "Garamond","Bookman Old Style","Century Gothic","Gill Sans MT","Rockwell",
+    "Bell MT","Calisto MT","Perpetua","Lucida Handwriting","Wide Latin",
+    "Myriad Pro","Minion Pro","Source Sans Pro","Source Code Pro","Source Serif Pro"];
+  try {
+    const x = document.createElement("canvas").getContext("2d");
+    const ancho = (f) => { x.font = "72px '" + f + "', serif"; return x.measureText("mmmmmmmmmmlli").width; };
+    const base = ancho("NoExisteEstaFuente12345");
+    o.fonts_ancho_base = base;
+    o.fonts_por_ancho = SONDA_F.filter(f => ancho(f) !== base).join(",");
+    o.ancho_system_ui = ancho("system-ui");
+    const anchos = {};
+    for (const f of ["Arial","Tahoma","Verdana","Courier New","Times New Roman","Georgia","serif","sans-serif","monospace","Roboto","Noto Serif","Cutive Mono"]) anchos[f] = ancho(f);
+    x.font = "bold 72px Arial, serif"; anchos["Arial bold"] = x.measureText("mmmmmmmmmmlli").width;
+    x.font = "italic 72px Arial, serif"; anchos["Arial italic"] = x.measureText("mmmmmmmmmmlli").width;
+    o.fonts_anchos = anchos;
+  } catch (e) { o.fonts_por_ancho = "ERR:" + e.name; }
+
+  // Un rect con decimales: como redondea la pantalla a su DPR.
+  try {
+    const el = document.createElement("div");
+    el.style.cssText = "position:absolute;left:13.37px;top:7.77px;width:41.3px;height:9.9px";
+    document.body.appendChild(el);
+    const r = el.getBoundingClientRect();
+    o.rect = [r.x, r.y, r.width, r.height].join(",");
+    el.remove();
+  } catch (e) { o.rect = "ERR:" + e.name; }
+
+  // Dispositivos de media: cuantos de cada tipo (sin permiso no hay nombres).
+  try {
+    const ds = await navigator.mediaDevices.enumerateDevices();
+    o.media = { audioinput: 0, videoinput: 0, audiooutput: 0 };
+    for (const d of ds) o.media[d.kind] = (o.media[d.kind] || 0) + 1;
+    o.media_labels = ds.map(d => d.kind + ":" + (d.label || "")).join("|");
+  } catch (e) { o.media = "ERR:" + e.name; }
+
+  // DRM.
+  try {
+    const cfg = [{ initDataTypes: ["cenc"], videoCapabilities: [{ contentType: 'video/mp4;codecs="avc1.42E01E"' }] }];
+    o.eme_widevine = await navigator.requestMediaKeySystemAccess("com.widevine.alpha", cfg).then(a => "ok:" + a.keySystem, e => "ERR:" + e.name);
+  } catch (e) { o.eme_widevine = "ERR:" + e.name; }
+  seguro("codec_h264", () => document.createElement("video").canPlayType('video/mp4; codecs="avc1.42E01E"'));
+
+  const texto = JSON.stringify(o, null, 1);
+
+  // Modo captura: el resultado en texto plano, una clave por linea, partido
+  // en paginas que entren enteras en la pantalla. Cada pagina lleva su
+  // numero y un hash corto del total, para saber que no falta ninguna.
+  // Modo captura: solo lo que cambia entre equipos. Lo que es igual en todos
+  // los Android medidos (UA, brands, fuentes, precision...) se resume en un
+  // ok/NO contra lo ya medido; si es NO va el valor entero para mirarlo.
+  const REF = {
+    ua: /^Mozilla\/5\.0 \(Linux; Android 10; K\) AppleWebKit\/537\.36 \(KHTML, like Gecko\) Chrome\/\d+\.0\.0\.0 Mobile Safari\/537\.36$/,
+    platform: "Linux armv81", webdriver: false, touch_evento: true, puntero: "coarse/none", orientacion: "portrait-primary", colorDepth: 24,
+    api_contentIndex: true, api_contactsManager: true, api_downlinkMax: true,
+    uaData_brands: /^Google Chrome\/\d+\|Chromium\/\d+\|Not.A;Brand\/\d+$/, uaData_mobile: true, uaData_platform: "Android",
+    uaData_architecture: "", uaData_bitness: "",
+    gl_version: "WebGL 2.0 (OpenGL ES 3.0 Chromium)", gl_shading: "WebGL GLSL ES 3.00 (OpenGL ES GLSL ES 3.0 Chromium)",
+    gl_precision_frag_high: "127/127/23", gl_antialias: true,
+    fonts_ancho_base: 747.94921875, fonts_por_ancho: "Arial,Courier New,Tahoma,Verdana", ancho_system_ui: 683.9296875,
+    fonts_anchos: '{"Arial":683.9296875,"Tahoma":683.9296875,"Verdana":683.9296875,"Courier New":566.71875,"Times New Roman":747.94921875,"Georgia":747.94921875,"serif":747.94921875,"sans-serif":683.9296875,"monospace":561.69140625,"Roboto":747.94921875,"Noto Serif":747.94921875,"Cutive Mono":747.94921875,"Arial bold":680.8359375,"Arial italic":663.36328125}',
+    media: '{"audioinput":1,"videoinput":1,"audiooutput":1}', codec_h264: "probably",
+  };
+  const IGNORAR = new Set(["medido", "version_sonda", "inner", "idiomas", "zona", "uaData_fullVersionList", "rect", "media_labels", "eme_widevine", "uaData_platformVersion"]);
+  const texto1 = (k, v) => typeof v === "object" ? JSON.stringify(v) : String(v);
+  const lineas0 = [];
+  for (const [k, v] of Object.entries(o)) {
+    if (IGNORAR.has(k)) continue;
+    if (k in REF) {
+      const r = REF[k], t = texto1(k, v);
+      const ok = r instanceof RegExp ? r.test(t) : t === texto1(k, r);
+      lineas0.push(ok ? k + "=ok" : k + "=NO " + t);
+    } else lineas0.push(k + "=" + texto1(k, v));
+  }
+  const okeys = lineas0.filter(l => l.endsWith("=ok")).map(l => l.slice(0, -3));
+  const plano = "android=" + (o.uaData_platformVersion || "?") + "\n" + lineas0.filter(l => !l.endsWith("=ok")).join("\n") + "\nok=" + okeys.length + "/" + Object.keys(REF).length;
+  let hash = 5381; for (const ch of plano) hash = ((hash * 33) ^ ch.charCodeAt(0)) >>> 0;
+  const firma = hash.toString(16).padStart(8, "0");
+  document.getElementById("modo-captura").disabled = false;
+  document.getElementById("modo-captura").onclick = () => {
+    const cap = document.createElement("div"); cap.id = "captura";
+    cap.innerHTML = '<div class="cab"><span id="cab-pag"></span><span>firma ' + firma + '</span></div><pre id="cab-pre"></pre><div class="pie"><button id="cab-ant" class="secundario">Anterior</button><button id="cab-sig">Siguiente</button><button id="cab-cerrar" class="secundario">Cerrar</button></div>';
+    document.body.append(cap);
+    const pre = cap.querySelector("#cab-pre");
+    // Cuantas lineas entran: se mide con la pantalla, no se supone.
+    const lineas = []; for (const l of plano.split("\n")) { const cols = Math.max(20, Math.floor(pre.clientWidth / 7.0)); for (let i = 0; i < l.length; i += cols) lineas.push(l.slice(i, i + cols)); }
+    const porPagina = Math.max(10, Math.floor(pre.clientHeight / (11.5 * 1.22)) - 1);
+    const paginas = []; for (let i = 0; i < lineas.length; i += porPagina) paginas.push(lineas.slice(i, i + porPagina).join("\n"));
+    let n = 0;
+    const pintar = () => { pre.textContent = paginas[n]; cap.querySelector("#cab-pag").textContent = "pagina " + (n + 1) + "/" + paginas.length; };
+    cap.querySelector("#cab-ant").onclick = () => { n = Math.max(0, n - 1); pintar(); };
+    cap.querySelector("#cab-sig").onclick = () => { n = Math.min(paginas.length - 1, n + 1); pintar(); };
+    cap.querySelector("#cab-cerrar").onclick = () => cap.remove();
+    pintar();
+  };
+  document.getElementById("salida").value = texto;
+  const resumen = document.getElementById("resumen");
+  for (const [k, v] of [["Modelo (hint)", o.uaData_model || "—"], ["Android", o.uaData_platformVersion || "—"], ["GPU", o.webgl_renderer || "—"], ["Pantalla", o.screen], ["Disponible", o.screen_avail]]) {
+    const dt = document.createElement("dt"); dt.textContent = k;
+    const dd = document.createElement("dd"); dd.textContent = String(v);
+    resumen.append(dt, dd);
+  }
+  resumen.hidden = false;
+  document.getElementById("estado").innerHTML = "<strong>Listo.</strong> Tocá «Copiar el resultado» y mandalo.";
+  const boton = document.getElementById("copiar");
+  boton.disabled = false;
+  // Enviar por navegacion (un GET con el JSON en la URL): la pagina no puede
+  // hacer fetch a otros dominios, pero si navegar. ~5 KB entran de sobra.
+  const enviar = document.getElementById("enviar");
+  enviar.disabled = false;
+  document.getElementById("envio").onsubmit = (ev) => {
+    ev.preventDefault();
+    const destino = document.getElementById("destino").value.trim();
+    if (!/^https?:\/\//.test(destino)) { document.getElementById("destino").focus(); return; }
+    const u = new URL(destino);
+    u.searchParams.set("medicion", JSON.stringify(o));
+    location.href = u.toString();
+  };
+  boton.onclick = async () => {
+    try { await navigator.clipboard.writeText(texto); boton.textContent = "Copiado ✓"; }
+    catch { document.getElementById("salida").select(); boton.textContent = "Seleccionado: ahora Copiar"; }
+  };
+})();
+</script>
+
+</html>
