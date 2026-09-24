@@ -74,6 +74,23 @@
     o.bateria = b.charging + "/" + b.level;
   } catch (e) { o.bateria = "ERR:" + e.name; }
 
+  // WebGPU (GAB-139): lo que depende de la placa. Los `limits` salen en los
+  // escalones de Chrome; los `features` y el subgrupo, no.
+  estado("midiendo WebGPU…");
+  try {
+    const a = await navigator.gpu.requestAdapter();
+    if (!a) {
+      o.webgpu = "sin adapter";
+    } else {
+      o.webgpu = a.info.vendor + "/" + a.info.architecture;
+      o.webgpu_subgrupo = a.info.subgroupMinSize + "-" + a.info.subgroupMaxSize;
+      o.webgpu_features = [...a.features].sort().join(",");
+      const l = [];
+      for (const k in a.limits) l.push(k + "=" + a.limits[k]);
+      o.webgpu_limits = l.sort().join(",");
+    }
+  } catch (e) { o.webgpu = "ERR:" + e.name; }
+
   // Voces (GAB-140): llegan en tandas, así que se lee la lista final a los 12
   // segundos, no la primera que aparezca.
   estado("esperando las voces…");
