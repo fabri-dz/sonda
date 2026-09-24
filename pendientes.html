@@ -74,6 +74,34 @@
     o.bateria = b.charging + "/" + b.level;
   } catch (e) { o.bateria = "ERR:" + e.name; }
 
+  // WebGL (GAB-145): las extensiones, los límites y la precisión de la placa,
+  // con las mismas claves que arnes.py. Sirve en un escritorio: es lo que un
+  // perfil de escritorio informa de la máquina.
+  try {
+    const c = document.createElement("canvas");
+    const gl = c.getContext("webgl2") ?? c.getContext("webgl");
+    if (!gl) o.gl_extensiones = "sin contexto";
+    else {
+      const d = gl.getExtension("WEBGL_debug_renderer_info");
+      o.webgl_renderer = d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : "(sin ext)";
+      o.gl_version = gl.getParameter(gl.VERSION);
+      const ext = gl.getSupportedExtensions() ?? [];
+      o.gl_extensiones_n = ext.length;
+      o.gl_extensiones = ext.slice().sort().join(",");
+      o.gl_max_texture = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+      o.gl_max_viewport = (gl.getParameter(gl.MAX_VIEWPORT_DIMS) ?? []).join("x");
+      o.gl_max_renderbuffer = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
+      o.gl_max_varying = gl.getParameter(gl.MAX_VARYING_VECTORS);
+      o.gl_max_vertex_uniform = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS);
+      o.gl_max_fragment_uniform = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS);
+      o.gl_max_texture_units = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS);
+      o.gl_aliased_line = (gl.getParameter(gl.ALIASED_LINE_WIDTH_RANGE) ?? []).join("-");
+      o.gl_aliased_point = (gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) ?? []).join("-");
+      const p = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+      o.gl_precision_frag_high = p ? p.rangeMin + "/" + p.rangeMax + "/" + p.precision : "?";
+    }
+  } catch (e) { o.gl_extensiones = "ERR:" + e.name; }
+
   // WebGPU (GAB-139): lo que depende de la placa. Los `limits` salen en los
   // escalones de Chrome; los `features` y el subgrupo, no.
   estado("midiendo WebGPU…");
